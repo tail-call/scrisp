@@ -20,6 +20,12 @@ to a variable `<-'. Thus, `<-' always denote the result of a previous form.
 	       body)
      <-))
 
+(define rest cdr)
+
+(define (replace item with items)
+  "Replaces every ITEM-eqv?al item from ITEMS with WITH."
+  (map (lambda (x) (if (eqv? x item) with x)) items))
+
 (define (vector-for-each fun vec)
   "Applies FUN to each element in VEC for side effects, returns nothing."
   (let ((len (vector-length vec)))
@@ -37,7 +43,7 @@ to a variable `<-'. Thus, `<-' always denote the result of a previous form.
 
 FUN-BETWEEN is applied to arguments of previous and next applications of
 FUN-EACH."
-  (format (current-error-port)
+  #;(format (current-error-port)
 	  "(FOR-EACH/BETWEEN FUN-EACH FUN-BETWEEN ~A)~%" items)
   (cond ((null? items))
 	((single? items) (fun-each (car items)))
@@ -93,6 +99,16 @@ FUN-EACH."
       (begin (string-set! <- 0 #\.)
 	     <-)			; Too bad I have to do this.
       (string->symbol <-)))
+
+(define (fresh-id sym)
+  "Is supposed to return a non-used JS identifier."
+  (-> (symbol->string sym)
+      (string->list <-)
+      (replace #\- #\_ <-)
+      (replace #\? #\p <-)
+      (cons #\_ <-)
+      (list->string <-)
+      (gensym <-)))
 
 (define (compile-call caller args env)
   "Compiles a function call.
@@ -169,9 +185,25 @@ If NEW-VALUE is not false, it is used as a new value of the field."
   (compile else-clause env)
   (display ")"))
 
+(define (compile-let bindings body env)
+  (let ((env-ext (map (lambda (x)
+			(cons (car x) (fresh-id (car x))))
+		      bindings)))
+    (for-each (lambda (binding)
+		(assert (symbol? (car binding)))
+		(display "var ")
+		(display (retrieve-binding (car binding)
+					   env-ext))
+		(display "=")
+		(compile (cadr binding) env)
+		(display ";"))
+	      bindings)
+    (compile-block body (append env-ext env))))
+
 (define (retrieve-binding name env)
   "Gets a NAME binging from ENVironment."
-  (let ((binding (assq name env)))
+  (let ((binding (assv name env)))
+    #;(write binding (current-error-port))
     (if binding
 	(cdr binding)
 	(error "Name is unbound in current scope" name))))
@@ -184,6 +216,8 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 
 (define (compile form env)
   "Compiles a Scrisp expression to Javascript source. Result is displayed."
+  #;(format (current-error-port)
+	  "(COMPILE ~S ~S)~%~%" form env)
   (cond ((null? form)
 	 (display "null "))
 	((symbol? form)
@@ -203,6 +237,8 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 	     ((if)
 	      (compile-the-if (first D) (second D)
 			      (third D) env))
+	     ((let)
+	      (compile-let (first D) (rest D) env))
 	     (else
 	      (cond ((dot-symbol? A)
 		     (compile-dot-call (car D) A (cdr D)

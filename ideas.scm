@@ -3,7 +3,13 @@
 (with-output-to-file "~/script.js"
   (lambda ()
     (compile
-     '(alert (cos (prompt)))
+
+     '(let ((a (prompt))
+	    (b (prompt)))
+	(if (> a b)
+	    (alert "First is bigger.")
+	    (alert "First is not bigger.")))
+
      default-names)
     ))
 
