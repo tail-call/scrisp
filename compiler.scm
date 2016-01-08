@@ -78,11 +78,11 @@ FUN-EACH."
 	     char)))
 
 (define (at-symbol? sym)
-  "Does SYM begin with #\@?"
+  "Does SYM begin with #\\@?"
   (symbol-first-char=? sym #\@))
 
 (define (dot-symbol? sym)
-  "Does SYM begin with #\.?"
+  "Does SYM begin with #\\.?"
   (symbol-first-char=? sym #\.))
 
 (define (at->dot sym)
