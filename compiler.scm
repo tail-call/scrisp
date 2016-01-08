@@ -1,4 +1,4 @@
-;;; A simple Lisp syntax for JS.
+;;; Scrisp: a Lisp syntax of average simplicity for JS.
 ;;; Useful for code generation.
 
 (define default-names
@@ -78,24 +78,26 @@ FUN-EACH."
 	     char)))
 
 (define (at-symbol? sym)
+  "Does SYM begin with #\@?"
   (symbol-first-char=? sym #\@))
 
 (define (dot-symbol? sym)
+  "Does SYM begin with #\.?"
   (symbol-first-char=? sym #\.))
 
 (define (at->dot sym)
   "Converts at-symbols to dot-symbols: (at->dot '@foo) => .foo."
-  (assert (symbol-first-char=? sym #\@))
+  (assert (at-symbol? sym))
   (-> (symbol->string sym)
-      (string-copy <-)
-      (begin (string-set! <- 0 #\.) 	; Too bad I have to do this.
-	     <-)
+      #;(string-copy <-)
+      (begin (string-set! <- 0 #\.)
+	     <-)			; Too bad I have to do this.
       (string->symbol <-)))
 
 (define (compile-call caller args env)
   "Compiles a function call.
 
-CALLER is a callable object (weird, huh?), ARGS is arguments."
+CALLER is a called object (weird, huh?), ARGS is arguments."
   (display "(")
   (compile caller env)
   (display ")(")
@@ -167,11 +169,12 @@ If NEW-VALUE is not false, it is used as a new value of the field."
   (compile else-clause env)
   (display ")"))
 
-(define (retrieve-binding var env)
-  (let ((binding (assq var env)))
+(define (retrieve-binding name env)
+  "Gets a NAME binging from ENVironment."
+  (let ((binding (assq name env)))
     (if binding
 	(cdr binding)
-	(error "Name is unbound in current scope" var))))
+	(error "Name is unbound in current scope" name))))
 
 (define (maybe-nth n items)
   "Returns (NTH N ITEMS) if it exists, otherwise #f."
@@ -180,7 +183,7 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 	(else (maybe-nth (- n 1) (cdr items)))))
 
 (define (compile form env)
-  "Compiles a Scrisp form to Javascript source. Result is displayed."
+  "Compiles a Scrisp expression to Javascript source. Result is displayed."
   (cond ((null? form)
 	 (display "null "))
 	((symbol? form)
