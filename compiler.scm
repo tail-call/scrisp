@@ -5,6 +5,7 @@
   '((document . document)
     (alert . alert)
     (prompt . prompt)
+    (eval-js . eval)
     (sin . Math.sin)
     (cos . Math.cos)))
 
@@ -68,6 +69,11 @@ FUN-EACH."
   "Displays string STR in a Javascript-readable form."
   (format #t "~S" str))
 
+(define (display-js-boolean bool)
+  (if bool
+      (display "true ")
+      (display "false ")))
+
 (define (display-js-atom atom)
   "Displays Scheme atom as a Javascript atom."
   (cond ((vector? atom)
@@ -75,7 +81,9 @@ FUN-EACH."
 	((number? atom)
 	 (display-js-number atom))
 	((string? atom)
-	 (display-js-string atom))))
+	 (display-js-string atom))
+	((boolean? atom)
+	 (display-js-boolean atom))))
 
 (define (symbol-first-char=? sym char)
   "Returns true if first character of symbol SYM is CHAR."
@@ -90,6 +98,12 @@ FUN-EACH."
 (define (dot-symbol? sym)
   "Does SYM begin with #\\.?"
   (symbol-first-char=? sym #\.))
+
+(define (regular-symbol? sym)
+  "Is SYM is a suitable variable name?"
+  (and (symbol? sym)
+       (not (or (at-symbol? sym)
+		(dot-symbol? sym)))))
 
 (define (at->dot sym)
   "Converts at-symbols to dot-symbols: (at->dot '@foo) => .foo."
@@ -155,14 +169,32 @@ If NEW-VALUE is not false, it is used as a new value of the field."
     (compile new-value env)
     (display ")")))
 
-(define (compile-block forms env)
+(define (compile-block forms env #!optional return)
   "Compiles a sequens of FORMS into a {}-block."
   (display "{")
-  (for-each (lambda (x)
-	      (compile x env)
-	      (display ";"))
+  (when return
+    (display "return "))
+  (for-each/between (lambda (x)
+		      (compile x env))
+		    (lambda (x y)
+		      (display ","))
 	    forms)
   (display "}"))
+
+(define (make-env names)
+  (map (lambda (x) (cons x (fresh-id x))) names))
+
+(define (compile-lambda lambda-list body env)
+  "Compiles an anonymous function. LAMBDA-LIST is formal arguments."
+  (let ((env-ext (make-env lambda-list)))
+    (display "function(")
+    (for-each/between (lambda (x)
+			(display (cdr x)))
+		      (lambda (x y)
+			(display ","))
+		      env-ext)
+    (display ")")
+    (compile-block body (append env-ext env) 'return)))
 
 (define (compile-infix op-symbol forms env)
   "Compiles an operator as an infix-expression."
@@ -186,11 +218,10 @@ If NEW-VALUE is not false, it is used as a new value of the field."
   (display ")"))
 
 (define (compile-let bindings body env)
-  (let ((env-ext (map (lambda (x)
-			(cons (car x) (fresh-id (car x))))
-		      bindings)))
+  (let ((env-ext (make-env (map car bindings))))
     (for-each (lambda (binding)
-		(assert (symbol? (car binding)))
+		(assert (regular-symbol? (car binding))
+			"Dot-symbols or at-symbols cannot be used as variable names.")
 		(display "var ")
 		(display (retrieve-binding (car binding)
 					   env-ext))
@@ -224,6 +255,8 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 	 (display (retrieve-binding form env)))
 	((dot-symbol? form)
 	 (error "Dot-symbol must be a first element of form."))
+	((at-symbol? form)
+	 (error "At-symbol must be a first element of form."))
 	((atom? form)
 	 (display-js-atom form))
 	(else				; Is a list.
@@ -232,6 +265,8 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 	   (case A
 	     ((begin)
 	      (compile-block D env))
+	     ((lambda)
+	      (compile-lambda (car D) (cdr D) env))
 	     ((* / + - < > <= >= ==) ; Treat operators as special forms
 	      (compile-infix A D env))
 	     ((if)

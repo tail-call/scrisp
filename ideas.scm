@@ -4,11 +4,8 @@
   (lambda ()
     (compile
 
-     '(let ((a (prompt))
-	    (b (prompt)))
-	(if (> a b)
-	    (alert "First is bigger.")
-	    (alert "First is not bigger.")))
+     '(let ((display alert))
+	(display "Hello world!"))
 
      default-names)
     ))
