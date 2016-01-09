@@ -12,7 +12,7 @@
 		1
 		(* n (fac (- n 1))))))
 
-	(.write document (fac 8)))
+	(.write document (fac 9)))
 
      (default-names))
     ))
