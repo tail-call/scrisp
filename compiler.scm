@@ -1,13 +1,13 @@
 ;;; Scrisp: a Lisp syntax of average simplicity for JS.
 ;;; Useful for code generation.
 
-(define default-names
-  '((document . document)
-    (alert . alert)
-    (prompt . prompt)
-    (eval-js . eval)
-    (sin . Math.sin)
-    (cos . Math.cos)))
+(define (default-names)
+  (list '(document . document)
+	'(alert . alert)
+	'(prompt . prompt)
+	'(eval-js . eval)
+	'(sin . Math.sin)
+	'(cos . Math.cos)))
 
 (define-macro (-> . body)
   "Macro for piping expressions.
@@ -22,6 +22,15 @@ to a variable `<-'. Thus, `<-' always denote the result of a previous form.
      <-))
 
 (define rest cdr)
+
+(define (copy-pair pair)
+  "Returns a copy of PAIR."
+  (cons (car pair) (cdr pair)))
+
+(define (push! x pair)
+  "Modifies PAIR such that X becomes its car and copy of PAIR becomes its cdr."
+  (set-cdr! pair (copy-pair pair))
+  (set-car! pair x))
 
 (define (replace item with items)
   "Replaces every ITEM-eqv?al item from ITEMS with WITH."
@@ -124,6 +133,16 @@ FUN-EACH."
       (list->string <-)
       (gensym <-)))
 
+(define (make-env names)
+  (map (lambda (x) (cons x (fresh-id x))) names))
+
+(define (extend-env env-ext env)
+  (if (null? env-ext)
+      ;; We need to make sure ENV remains unique
+      ;; so defines inside blocks work as expected.
+      (copy-pair env)
+      (append env-ext env)))
+
 (define (compile-call caller args env)
   "Compiles a function call.
 
@@ -170,7 +189,7 @@ If NEW-VALUE is not false, it is used as a new value of the field."
     (display ")")))
 
 (define (compile-block forms env #!optional return)
-  "Compiles a sequens of FORMS into a {}-block."
+  "Compiles a sequence of FORMS into a {}-block."
   (display "{")
   (when return
     (display "return "))
@@ -181,8 +200,18 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 	    forms)
   (display "}"))
 
-(define (make-env names)
-  (map (lambda (x) (cons x (fresh-id x))) names))
+(define (compile-define name value env)
+  (assert (regular-symbol? name))
+  (let ((new-binding (cons name (fresh-id name))))
+    ;; Now we populate ENV with new binding.
+    ;; Note that after the next line ENV is destructively modified.
+    (push! new-binding env)
+    (display "var ")
+    (display (cdr new-binding))
+    (display "=")
+    (compile value env)
+    ;; This hack allows defines to reside withis blocks.
+    (display ";null")))
 
 (define (compile-lambda lambda-list body env)
   "Compiles an anonymous function. LAMBDA-LIST is formal arguments."
@@ -194,7 +223,7 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 			(display ","))
 		      env-ext)
     (display ")")
-    (compile-block body (append env-ext env) 'return)))
+    (compile-block body (extend-env env-ext env) 'return)))
 
 (define (compile-infix op-symbol forms env)
   "Compiles an operator as an infix-expression."
@@ -229,7 +258,7 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 		(compile (cadr binding) env)
 		(display ","))
 	      bindings)
-    (compile-block body (append env-ext env))))
+    (compile-block body (extend-env env-ext env))))
 
 (define (retrieve-binding name env)
   "Gets a NAME binging from ENVironment."
@@ -265,6 +294,8 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 	   (case A
 	     ((begin)
 	      (compile-block D env))
+	     ((define)
+	      (compile-define (first D) (second D) env))
 	     ((lambda)
 	      (compile-lambda (car D) (cdr D) env))
 	     ((* / + - < > <= >= ==) ; Treat operators as special forms

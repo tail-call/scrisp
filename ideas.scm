@@ -4,10 +4,17 @@
   (lambda ()
     (compile
 
-     '(let ((display alert))
-	(display "Hello world!"))
+     '(begin
 
-     default-names)
+	(define fac
+	  (lambda (n)
+	    (if (== n 0)
+		1
+		(* n (fac (- n 1))))))
+
+	(.write document (fac 8)))
+
+     (default-names))
     ))
 
 ;;;; Ideas
