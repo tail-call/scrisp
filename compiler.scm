@@ -227,7 +227,7 @@ If NEW-VALUE is not false, it is used as a new value of the field."
 					   env-ext))
 		(display "=")
 		(compile (cadr binding) env)
-		(display ";"))
+		(display ","))
 	      bindings)
     (compile-block body (append env-ext env))))
 
