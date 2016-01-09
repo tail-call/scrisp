@@ -1,0 +1,20 @@
+ .-=======================================-.
+- Scrisp - Lisp that compiles to Javascript -
+ `-=======================================-'
+
+  1. HOW TO USE IT
+
+    $ csc -s utils.scm
+    $ csi compiler.scm
+    > (compile '(YOUR CODE) (default-names))
+
+    This is not how it actually must be used, however.
+
+  2. WHAT IS THE LANGUAGE
+
+    Language is a Scheme-like Lisp-1. Read the compiler code to figure out
+    what is implemented so far.
+
+  3. MACROS? INTERPRETER?
+
+    I hope to make them one day.
